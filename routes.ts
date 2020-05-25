@@ -1,4 +1,5 @@
-import { Router } from 'https://deno.land/x/oak/mod.ts'
+import { Router, RouterContext } from 'https://deno.land/x/oak/mod.ts'
+import { Response } from "https://deno.land/x/oak/response.ts";
 
 interface Todo {
     description: string
@@ -16,8 +17,8 @@ let todos: Array<Todo> = [
     },
 ]
 
-export const getTodos = ({ response }: { response: any }) => {
-    response.body = todos
+export const getTodos = (c: RouterContext) => {
+    c.response.body = todos
 }
 
 export const getTodo = ({
@@ -40,65 +41,52 @@ export const getTodo = ({
     response.body = { msg: `Cannot find todo ${params.id}` }
 }
 
-export const addTodo = async ({
-    request,
-    response,
-}: {
-    request: any
-    response: any
-}) => {
-    const body = await request.body()
+export const addTodo = async (c: RouterContext) => {
+    const body = await c.request.body()
     const { description, id }: { description: string; id: number } = body.value
     todos.push({
         description: description,
         id: id,
     })
 
-    response.body = { msg: 'OK' }
-    response.status = 200
+    c.response.body = { msg: 'OK' }
+    c.response.status = 200
 }
 
-export const updateTodo = async ({
-    params,
-    request,
-    response,
-}: {
-    params: {
-        id: string
-    }
-    request: any
-    response: any
-}) => {
-    const temp = todos.filter((existingTodo) => existingTodo.id === parseInt(params.id))
-    const body = await request.body()
-    const { description }: { description: string } = body.value.description
-
-    if (temp.length) {
-        temp[0].description = description
-        response.status = 200
-        response.body = { msg: 'OK' }
-        return
+export const updateTodo = async (c: RouterContext) => {
+    const id = c.params.id
+    let response = c.response
+    if(id){
+        const temp = todos.filter((existingTodo) => existingTodo.id === parseInt(id))
+        const body = await c.request.body()
+        const description: string  = body.value.description
+        if (temp.length) {
+            temp[0].description = description
+            response.status = 200
+            response.body = { msg: 'OK' }
+            return
+        }
     }
 
     response.status = 400
-    response.body = { msg: `Cannot find todo ${params.id}` }
+    response.body = { msg: `Cannot find todo ${c.params.id}` }
 }
 
-export const removeTodo = ({
-    params,
-    response,
-}: {
+type RemoveContext = {
     params: {
         id: string
     }
-    response: any
-}) => {
-    const lengthBefore = todos.length
-    todos = todos.filter((todo) => todo.id !== parseInt(params.id))
+    response: Response
+}
 
+export const removeTodo = (c: RemoveContext) => {
+    const lengthBefore = todos.length
+    todos = todos.filter((todo) => todo.id !== parseInt(c.params.id))
+
+    let response = c.response
     if (todos.length === lengthBefore) {
         response.status = 400
-        response.body = { msg: `Cannot find todo ${params.id}` }
+        response.body = { msg: `Cannot find todo ${c.params.id}` }
         return
     }
 
@@ -106,9 +94,9 @@ export const removeTodo = ({
     response.status = 200
 }
 
-export const getHome = ({ response }: { response: any }) => {
-    response.body = 'Deno API server is running...'
-    response.status = 200
+export const getHome = (c: RouterContext) => {
+    c.response.body = 'Deno API server is running...'
+    c.response.status = 200
 }
 
 export const router = new Router()
